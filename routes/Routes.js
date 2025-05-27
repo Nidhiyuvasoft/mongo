@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-
-const Model = require('../model/Model')
+const Model = require('../model/Model');
+const User = require('../model/Users');
+const bcrypt = require('bcryptjs');
 
 // post method
 router.post('/post',async (req,res)=>{
@@ -62,6 +63,54 @@ router.delete('/delete/:id',async(req,res)=>{
         res.status(400).json({message:error.message})
     }
     
+})
+// signup
+
+router.post('/signup',async(req,res)=>{
+    try{
+        const {userName,email,password} = req.body;
+        const existingUser = await User.findOne({ email });
+
+        if(existingUser){
+            return res.status(400).json({message:"User alreadt exist"})
+        }
+        const hashedPassword = await bcrypt.hash(password,10);
+        const user = new User({
+            userName,
+            email,
+            password:hashedPassword
+        })
+        const savedUser = await user.save();
+        res.status(201).json(savedUser)
+    }
+    catch(error){
+        res.status(500).json({message:error.message})
+    }
+})
+
+
+// login
+router.post('/login',async(req,res)=>{
+    
+    try{
+        const{email,password} =req.body;
+        const user = await User.findOne({email});
+        if(!user){
+           return(
+            res.status(400).json({message:"Invalid Credentials"})
+           )
+        }
+        const isMatch = await bcrypt.compare(password,user.password)
+        if(!isMatch){
+            return(
+                res.status(400).json({message:"Invalid Credentials"})
+            )
+        }
+        res.status(200).json({message:"Login Successfully",userId:user._id})
+    }
+    catch(error){
+        res.status(500).json({message:error.message})
+    }
 })
 
 module.exports = router;
